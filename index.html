@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Super ORTO IMPOSIBLE</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{font-family:Arial;background:#121212;color:white;text-align:center;padding:20px;}
+.container{background:#222;padding:25px;border-radius:10px;width:800px;margin:auto;}
+button{background:#00ff9d;border:none;padding:10px;margin:5px;border-radius:6px;cursor:pointer;}
+button:hover{background:#00cc7a;}
+#carcel{display:none;background:#300000;padding:30px;border-radius:10px;}
+canvas{margin-top:20px;}
+hr{border:1px solid #444;margin:15px 0;}
+</style>
+</head>
+<body>
+
+<div class="container" id="juego">
+<h1>💀 SUPER ORTO IMPOSIBLE 💀</h1>
+
+<h2>Dinero (ORTOS): <span id="dinero">0</span></h2>
+<h3>Deuda: <span id="deuda">0</span></h3>
+<h3>Nivel Económico: <span id="nivel">Pobre</span></h3>
+<p id="alerta"></p>
+
+<hr>
+
+<h3>Empresas y Trabajadores</h3>
+<p>Empresas: <span id="empresas">0</span></p>
+<p>Trabajadores: <span id="trabajadores">0</span></p>
+<p>Ganancias totales: <span id="gananciaEmpresa">0</span></p>
+<button onclick="crearEmpresa()">Crear empresa (200 ORTOS)</button>
+<button onclick="contratar()">Contratar trabajador (30 ORTOS)</button>
+
+<hr>
+
+<h3>IA Competidora</h3>
+<p>Producción rival: <span id="produccionIA">0</span></p>
+<p>Ganancia rival: <span id="gananciaIA">0</span></p>
+
+<hr>
+
+<h3>Trabajo y Banco</h3>
+<button onclick="trabajar()">Trabajar +10</button>
+<button onclick="prestamo(50)">Préstamo 50</button>
+<button onclick="prestamo(200)">Préstamo 200</button>
+<button onclick="pagarDeuda()">Pagar toda la deuda</button>
+
+<hr>
+
+<h3>Bolsa / Inversión Extrema</h3>
+<button onclick="invertir()">Invertir EXTREMO 20</button>
+<p>Puede perder todo o ganar el doble</p>
+
+<hr>
+
+<h3>Gráfica de tu dinero</h3>
+<canvas id="grafica"></canvas>
+</div>
+
+<div class="container" id="carcel">
+<h1>🚔 CÁRCEL POR DEUDAS</h1>
+<p>Tiempo restante: <span id="tiempoCarcel"></span></p>
+<button onclick="actividadIlegal()">Actividad ilegal (+/- riesgo)</button>
+<p id="mensaje"></p>
+</div>
+
+<script>
+let ortos=0,deuda=0,empresas=0,trabajadores=0,produccion=0,gananciaEmpresa=0;
+let produccionIA=30,gananciaIA=0;
+let historial=[],tiempo=0;
+let carcel=false,tiempoCarcel=0;
+let alerta = document.getElementById("alerta");
+
+const dineroSpan=document.getElementById("dinero");
+const deudaSpan=document.getElementById("deuda");
+const empresasSpan=document.getElementById("empresas");
+const trabajadoresSpan=document.getElementById("trabajadores");
+const gananciaEmpresaSpan=document.getElementById("gananciaEmpresa");
+const produccionIASpan=document.getElementById("produccionIA");
+const gananciaIASpan=document.getElementById("gananciaIA");
+const nivelSpan=document.getElementById("nivel");
+
+/* ACTUALIZAR */
+function actualizar(){
+  dineroSpan.innerText=ortos.toFixed(2);
+  deudaSpan.innerText=deuda.toFixed(2);
+  empresasSpan.innerText=empresas;
+  trabajadoresSpan.innerText=trabajadores;
+  gananciaEmpresaSpan.innerText=gananciaEmpresa.toFixed(2);
+  produccionIASpan.innerText=produccionIA.toFixed(1);
+  gananciaIASpan.innerText=gananciaIA.toFixed(2);
+  nivelSpan.innerText=obtenerNivel();
+}
+
+/* NIVEL ECONOMICO */
+function obtenerNivel(){
+  if(ortos<500) return "Pobre";
+  if(ortos<2000) return "Clase media";
+  if(ortos<10000) return "Rico";
+  return "Magnate";
+}
+
+/* TRABAJAR */
+function trabajar(){if(carcel) return; ortos+=10; actualizar();}
+
+/* PRESTAMOS */
+function prestamo(c){ortos+=c; deuda+=c; actualizar();}
+
+/* PAGAR DEUDA COMPLETA */
+function pagarDeuda(){if(ortos>=deuda){ortos-=deuda; deuda=0;}else{deuda-=ortos; ortos=0;} actualizar();}
+
+/* CREAR EMPRESA */
+function crearEmpresa(){if(ortos<200) return; ortos-=200; empresas++; produccion+=20; actualizar();}
+
+/* CONTRATAR TRABAJADOR */
+function contratar(){if(ortos<30) return; ortos-=30; trabajadores++; produccion+=10; actualizar();}
+
+/* INVERSIÓN EXTREMA */
+function invertir(){if(ortos<20) return; ortos-=20; let suerte=Math.random(); if(suerte>0.5){ortos+=40;}else{deuda+=ortos; ortos=0;} actualizar();}
+
+/* PRODUCCIÓN DE EMPRESA Y PAGO SUELDOS */
+setInterval(()=>{
+  if(carcel) return;
+  let competencia = (produccionIA>produccion)?0.7:1;
+  let ganancia = produccion*competencia;
+  ortos+=ganancia;
+  gananciaEmpresa+=ganancia;
+  let sueldo = trabajadores*5;
+  if(ortos>=sueldo){ortos-=sueldo;}
+  else{deuda += (sueldo - ortos); ortos=0;}
+  actualizar();
+},4000);
+
+/* IA PRODUCCIÓN */
+setInterval(()=>{let crecimiento=Math.random()*10; produccionIA+=crecimiento; gananciaIA+=produccionIA;},5000);
+
+/* COSTO DE VIDA */
+setInterval(()=>{if(carcel) return; deuda+=ortos*0.20; actualizar();},180000);
+
+/* IMPUESTOS 50% + 5% por trabajador */
+setInterval(()=>{
+  if(carcel) return;
+  let extra = trabajadores*0.05*ortos;
+  deuda += ortos*0.50 + extra;
+  actualizar();
+},300000);
+
+/* INTERES DE DEUDA 1% POR SEGUNDO */
+setInterval(()=>{if(deuda>0) deuda*=1.01; actualizar();},1000);
+
+/* CARCEL POR DEUDA EXTREMA */
+setInterval(()=>{
+  if(deuda>2000 && !carcel){
+    carcel=true; tiempoCarcel=480;
+    document.getElementById("juego").style.display="none";
+    document.getElementById("carcel").style.display="block";
+  }
+},2000);
+
+/* CARCEL POR NO PAGAR DEUDA EN 3 MIN */
+setInterval(()=>{
+  if(deuda>0 && !carcel){
+    if(!window.tempDeudaAlert) window.tempDeudaAlert=0;
+    window.tempDeudaAlert++;
+    if(window.tempDeudaAlert>=180){
+      carcel=true; tiempoCarcel=480;
+      document.getElementById("juego").style.display="none";
+      document.getElementById("carcel").style.display="block";
+      window.tempDeudaAlert=0;
+      alerta.innerText="No pagaste tu deuda a tiempo, ¡a la cárcel!";
+      setTimeout(()=>{alerta.innerText="";},8000);
+    }
+  } else {window.tempDeudaAlert=0;}
+},1000);
+
+/* TEMPORIZADOR CARCEL */
+setInterval(()=>{
+  if(carcel){
+    tiempoCarcel--;
+    document.getElementById("tiempoCarcel").innerText=tiempoCarcel;
+    if(tiempoCarcel<=0){carcel=false; document.getElementById("juego").style.display="block"; document.getElementById("carcel").style.display="none";}
+  }
+},1000);
+
+/* ACTIVIDAD ILEGAL EN CARCEL */
+function actividadIlegal(){let r=Math.random(); if(r>0.6){ortos+=80; document.getElementById("mensaje").innerText="Ganaste 80 ORTOS";} else{tiempoCarcel+=120; document.getElementById("mensaje").innerText="Te atraparon! +2 min de cárcel";} actualizar();}
+
+/* GRAFICA DE DINERO */
+const ctx=document.getElementById("grafica");
+const grafica=new Chart(ctx,{type:"line",data:{labels:[],datasets:[{label:"ORTOS",data:historial,borderColor:"lime"}]}});
+setInterval(()=>{historial.push(ortos); grafica.data.labels.push(tiempo); grafica.data.datasets[0].data=historial; grafica.update(); tiempo++;},4000);
+
+/* EVENTOS ALEATORIOS GLOBALES */
+setInterval(()=>{
+  if(carcel) return;
+  let evento=Math.random();
+  if(evento<0.05){produccion*=0.5; alerta.innerText="Crisis global, producción reducida!"; setTimeout(()=>{alerta.innerText="";},8000);}
+  else if(evento>0.95){produccion*=1.5; alerta.innerText="Boom económico, producción aumentada!"; setTimeout(()=>{alerta.innerText="";},8000);}
+  actualizar();
+},30000);
+
+actualizar();
+</script>
+</body>
+</html>
