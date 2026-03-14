@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Simulador ORTOS Multiusuario</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{ font-family:Arial; background:#1e1e1e; color:white; text-align:center; padding:20px; }
+.container{ background:#2c2c2c; padding:20px; border-radius:15px; width:750px; margin:auto; margin-bottom:20px;}
+button{ padding:10px 20px; margin:5px; border-radius:8px; border:none; cursor:pointer; background:#4CAF50; color:white; font-weight:bold; }
+button:hover{ background:#45a049; }
+input{ padding:5px; margin:3px; border-radius:5px; border:none; }
+#log,#logTrading,#logBanco,#logAhorros,#logSocial{ background:#111; color:#0f0; padding:10px; border-radius:10px; height:150px; overflow-y:scroll; text-align:left; margin-top:10px;}
+canvas{ background:#222; border-radius:10px; margin-top:20px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN / REGISTRO -->
+<div class="container" id="loginMenu">
+<h1>Simulador ORTOS - Login</h1>
+<input type="text" id="usuario" placeholder="Nombre de usuario"><br>
+<input type="password" id="password" placeholder="Contraseña"><br>
+<button onclick="registrar()">Registrar</button>
+<button onclick="login()">Iniciar sesión</button>
+<div id="logLogin"></div>
+</div>
+
+<!-- MENU PRINCIPAL -->
+<div class="container" id="mainMenu" style="display:none;">
+<h1>Sistema Empresarial ORTOS</h1>
+<div id="status"></div>
+<br>
+<button onclick="hojaVida()">Enviar Hoja de Vida</button>
+<button onclick="contratarEmpleado()">Contratar Empleado</button>
+<button onclick="pagarImpuestos()">Pagar Impuestos</button>
+<button onclick="irInvertir()">Ir a Invertir</button>
+<button onclick="irBanco()">Ir a Cuenta Bancaria</button>
+<button onclick="irAhorros()">Ir a Cuenta de Ahorros</button>
+<button onclick="irZonaSocial()">Ir a Zona Social</button>
+<br><br>
+<div id="log"></div>
+</div>
+
+<!-- TRADING -->
+<div class="container" id="tradingMenu" style="display:none;">
+<h1>Simulación de Trading ORTOS</h1>
+<div id="balanceTrading"></div>
+<div>Precio actual ORTOS: <span id="precio">1.00</span></div>
+<input type="number" id="compra" placeholder="Comprar ORTOS">
+<button onclick="comprar()">Comprar</button>
+<input type="number" id="venta" placeholder="Vender ORTOS">
+<button onclick="vender()">Vender</button>
+<br>
+<button onclick="transferirBancoTrading()">Enviar a Banco</button>
+<br><br>
+<button onclick="volverMenu()">Volver al Menú</button>
+<canvas id="priceChart" width="650" height="250"></canvas>
+<div id="logTrading"></div>
+</div>
+
+<!-- BANCO -->
+<div class="container" id="bankMenu" style="display:none;">
+<h1>Cuenta Bancaria</h1>
+<div id="balanceBancaria"></div>
+<br>
+<button onclick="transferirBancoEmpresa()">Transferir ganancias de empresa</button>
+<button onclick="volverMenuBanco()">Volver al Menú</button>
+<div id="logBanco"></div>
+</div>
+
+<!-- AHORROS -->
+<div class="container" id="ahorrosMenu" style="display:none;">
+<h1>Cuenta de Ahorros</h1>
+<div id="balanceAhorros"></div>
+<br>
+<input type="number" id="montoAhorros" placeholder="Cantidad a transferir desde banco">
+<button onclick="transferirAhorros()">Transferir a Ahorros</button>
+<br><br>
+<input type="number" id="montoAhorrosBanco" placeholder="Cantidad a enviar a Banco">
+<button onclick="enviarAhorrosBanco()">Enviar a Banco</button>
+<br>
+<input type="number" id="montoAhorrosTrading" placeholder="Cantidad a enviar a Trading">
+<button onclick="enviarAhorrosTrading()">Enviar a Trading</button>
+<br><br>
+<button onclick="volverMenuAhorros()">Volver al Menú</button>
+<div id="logAhorros"></div>
+</div>
+
+<!-- ZONA SOCIAL -->
+<div class="container" id="socialMenu" style="display:none;">
+<h1>Zona Social ORTOS</h1>
+<div id="listaUsuarios"></div>
+<br>
+<input type="text" id="usuarioTransferir" placeholder="Usuario destinatario">
+<input type="number" id="montoTransferir" placeholder="Cantidad ORTOS">
+<button onclick="transferirUsuario()">Transferir</button>
+<br><br>
+<button onclick="volverMenuSocial()">Volver al Menú</button>
+<div id="logSocial"></div>
+</div>
+
+<script>
+// -------------------- CUENTAS --------------------
+let cuentas = {};
+let usuarioActual = null;
+let probabilidadHojaDeVida = 1.0;
+
+if(localStorage.getItem("cuentas")) cuentas = JSON.parse(localStorage.getItem("cuentas"));
+
+function registrar(){
+    let u=document.getElementById("usuario").value;
+    let p=document.getElementById("password").value;
+    if(!u||!p){document.getElementById("logLogin").innerHTML="Rellena todos los campos";return;}
+    if(cuentas[u]){document.getElementById("logLogin").innerHTML="Usuario ya existe";return;}
+    cuentas[u]={password:p,dinero:100,empresas:0,empleados:0,banco:0,ahorros:0,dineroTrading:100,ortos:0,impuestosPendientes:0,enCarcel:false,alertaImpuestos:false};
+    localStorage.setItem("cuentas",JSON.stringify(cuentas));
+    document.getElementById("logLogin").innerHTML="Registrado correctamente";
+}
+
+function login(){
+    let u=document.getElementById("usuario").value;
+    let p=document.getElementById("password").value;
+    if(!cuentas[u]||cuentas[u].password!==p){document.getElementById("logLogin").innerHTML="Usuario o contraseña incorrectos";return;}
+    usuarioActual=u;
+    document.getElementById("loginMenu").style.display="none";
+    document.getElementById("mainMenu").style.display="block";
+    iniciarJuego();
+}
+
+// -------------------- LOG --------------------
+function log(texto){document.getElementById("log").innerHTML+=texto+"<br>";}
+function logTrading(texto){document.getElementById("logTrading").innerHTML+=texto+"<br>";}
+function logBanco(texto){document.getElementById("logBanco").innerHTML+=texto+"<br>";}
+function logAhorros(texto){document.getElementById("logAhorros").innerHTML+=texto+"<br>";}
+function logSocial(texto){document.getElementById("logSocial").innerHTML+=texto+"<br>";}
+
+// -------------------- ACTUALIZAR --------------------
+function actualizar(){
+    let c=cuentas[usuarioActual];
+    document.getElementById("status").innerText="Dinero: "+c.dinero.toFixed(2)+" | Empresas: "+c.empresas+" | Empleados: "+c.empleados;
+    localStorage.setItem("cuentas",JSON.stringify(cuentas));
+}
+function actualizarTrading(){let c=cuentas[usuarioActual];document.getElementById("balanceTrading").innerText="Dinero: "+c.dineroTrading.toFixed(2)+" | ORTOS: "+c.ortos.toFixed(2);document.getElementById("precio").innerText=precio.toFixed(2);localStorage.setItem("cuentas",JSON.stringify(cuentas));}
+function actualizarBanco(){let c=cuentas[usuarioActual];document.getElementById("balanceBancaria").innerText="Dinero en banco: "+c.banco.toFixed(2);localStorage.setItem("cuentas",JSON.stringify(cuentas));}
+function actualizarAhorros(){let c=cuentas[usuarioActual];document.getElementById("balanceAhorros").innerText="Dinero en ahorros: "+c.ahorros.toFixed(2);localStorage.setItem("cuentas",JSON.stringify(cuentas));}
+function actualizarZonaSocial(){
+    let html="<h3>Usuarios:</h3><ul>";
+    for(let u in cuentas){
+        if(u!==usuarioActual) html+="<li>"+u+": "+cuentas[u].dinero.toFixed(2)+" ORTOS</li>";
+    }
+    html+="</ul>";
+    document.getElementById("listaUsuarios").innerHTML=html;
+}
+
+// -------------------- INICIALIZAR --------------------
+let precio=1.0;
+let ctx=null,priceChart=null;
+
+function iniciarJuego(){
+    let c=cuentas[usuarioActual];
+    // Ganancias empresas
+    setInterval(()=>{
+        if(c.enCarcel) return;
+        let ganancia=c.empresas*20 + c.empleados*5;
+        c.dinero+=ganancia;
+        if(c.empresas>0||c.empleados>0) log("Tus empresas generaron "+ganancia+" ORTOS.");
+        actualizar();
+    },10000);
+
+    // Impuestos cada 3 min
+    setInterval(()=>{
+        if(c.enCarcel) return;
+        let porcentaje=50+c.empleados*5;
+        c.impuestosPendientes=c.dinero*(porcentaje/100);
+        c.alertaImpuestos=true;
+        log("⚠️ Nuevos impuestos: "+c.impuestosPendientes.toFixed(2)+" ORTOS ("+porcentaje+"%)");
+        actualizar();
+    },180000);
+
+    // Impuestos subiendo 1%/seg
+    setInterval(()=>{
+        if(c.alertaImpuestos && c.impuestosPendientes>0){
+            c.impuestosPendientes*=1.01;
+            log("⚠️ Impuestos subiendo: "+c.impuestosPendientes.toFixed(2)+" ORTOS");
+            if(c.impuestosPendientes>c.dinero*5){ irCarcel(); c.impuestosPendientes=0; c.alertaImpuestos=false; }
+        }
+        actualizar();
+    },1000);
+
+    // Trading
+    ctx=document.getElementById('priceChart').getContext('2d');
+    priceChart=new Chart(ctx,{type:'line',data:{labels:[],datasets:[{label:'Precio ORTOS',data:[],borderColor:'lime',backgroundColor:'rgba(0,255,0,0.2)',tension:0.2}]},options:{scales:{y:{beginAtZero:true}}}});
+    setInterval(()=>{
+        let cambio=(Math.random()-0.5)*0.2;
+        precio=Math.max(0.1,precio+cambio);
+        priceChart.data.labels.push(priceChart.data.labels.length+1);
+        priceChart.data.datasets[0].data.push(precio.toFixed(2));
+        priceChart.update();
+        actualizarTrading();
+    },3000);
+
+    actualizar(); actualizarTrading(); actualizarBanco(); actualizarAhorros(); actualizarZonaSocial();
+}
+
+// -------------------- EMPRESAS --------------------
+function hojaVida(){
+    let c=cuentas[usuarioActual];
+    if(c.enCarcel){ log("Estás en la cárcel."); return; }
+    if(c.empresas>=1){ log("Solo puedes tener una empresa."); return; }
+    if(Math.random()>probabilidadHojaDeVida){ log("Hoja de vida rechazada debido a antecedentes recientes."); return; }
+    let opcion=prompt("Elige tipo de empresa:\n1 Tecnología\n2 Restaurante\n3 Transporte");
+    if(opcion==1||opcion==2||opcion==3){ c.empresas++; log("Nueva empresa creada."); } else log("Empresa no aceptada.");
+    actualizar();
+}
+function contratarEmpleado(){ 
+    let c=cuentas[usuarioActual];
+    if(c.enCarcel){ log("Estás en la cárcel."); return; }
+    if(c.empresas<1){ log("Debes tener una empresa."); return; }
+    let costo=50;
+    if(c.dinero<costo){ log("No tienes suficiente dinero."); return; }
+    c.dinero-=costo; c.empleados++;
+    log("Contrataste un empleado. Total empleados: "+c.empleados);
+    actualizar();
+}
+
+// -------------------- IMPUESTOS --------------------
+function pagarImpuestos(){
+    let c=cuentas[usuarioActual];
+    if(c.impuestosPendientes<=0){ log("No hay impuestos pendientes."); return; }
+    if(c.dinero<c.impuestosPendientes){ log("No tienes suficiente dinero."); return; }
+    c.dinero-=c.impuestosPendientes;
+    log("Pagaste "+c.impuestosPendientes.toFixed(2)+" ORTOS en impuestos.");
+    c.impuestosPendientes=0; c.alertaImpuestos=false;
+    actualizar();
+}
+function irCarcel(){
+    let c=cuentas[usuarioActual];
+    c.enCarcel=true;
+    log("🚓 Vas a la cárcel por no pagar impuestos. Pierdes todo tu dinero y empresas.");
+    c.dinero=0; c.empresas=0; c.empleados=0; c.dineroTrading=0; c.ortos=0; c.banco=0; c.ahorros=0;
+    actualizar(); actualizarTrading(); actualizarBanco(); actualizarAhorros();
+    setTimeout(()=>{
+        c.enCarcel=false;
+        log("Saliste de la cárcel.");
+        probabilidadHojaDeVida=0.3;
+    },480000);
+}
+
+// -------------------- TRADING --------------------
+function comprar(){
+    let c=cuentas[usuarioActual];
+    let cantidad=parseFloat(document.getElementById("compra").value);
+    if(isNaN(cantidad)||cantidad<=0){ logTrading("Cantidad inválida"); return; }
+    let costo=cantidad*precio;
+    if(c.dineroTrading<costo){ logTrading("No tienes suficiente dinero"); return; }
+    c.dineroTrading-=costo; c.ortos+=cantidad;
+    logTrading("Compraste "+cantidad.toFixed(2)+" ORTOS por "+costo.toFixed(2));
+    actualizarTrading();
+}
+function vender(){
+    let c=cuentas[usuarioActual];
+    let cantidad=parseFloat(document.getElementById("venta").value);
+    if(isNaN(cantidad)||cantidad<=0){ logTrading("Cantidad inválida"); return; }
+    if(c.ortos<cantidad){ logTrading("No tienes suficientes ORTOS"); return; }
+    let ganancia=cantidad*precio;
+    c.ortos-=cantidad; c.dineroTrading+=ganancia;
+    logTrading("Vendiste "+cantidad.toFixed(2)+" ORTOS y obtuviste "+ganancia.toFixed(2));
+    actualizarTrading();
+}
+function transferirBancoTrading(){
+    let c=cuentas[usuarioActual];
+    c.banco+=c.dineroTrading;
+    logTrading("Se transfirió al banco: "+c.dineroTrading.toFixed(2));
+    c.dineroTrading=0; c.ortos=0;
+    actualizarTrading(); actualizarBanco();
+}
+
+// -------------------- BANCO --------------------
+function transferirBancoEmpresa(){
+    let c=cuentas[usuarioActual];
+    c.banco+=c.dinero;
+    logBanco("Se transfirió al banco: "+c.dinero.toFixed(2));
+    c.dinero=0;
+    actualizar(); actualizarBanco();
+}
+
+// -------------------- AHORROS --------------------
+function transferirAhorros(){
+    let c=cuentas[usuarioActual];
+    let cantidad=parseFloat(document.getElementById("montoAhorros").value);
+    if(isNaN(cantidad)||cantidad<=0){ logAhorros("Cantidad inválida"); return; }
+    if(c.banco<cantidad){ logAhorros("No hay suficiente dinero en banco"); return; }
+    c.banco-=cantidad; c.ahorros+=cantidad;
+    logAhorros("Se transfirieron "+cantidad.toFixed(2)+" a ahorros");
+    actualizarBanco(); actualizarAhorros();
+}
+function enviarAhorrosBanco(){
+    let c=cuentas[usuarioActual];
+    let cantidad=parseFloat(document.getElementById("montoAhorrosBanco").value);
+    if(isNaN(cantidad)||cantidad<=0){ logAhorros("Cantidad inválida"); return; }
+    if(c.ahorros<cantidad){ logAhorros("No hay suficiente dinero en ahorros"); return; }
+    c.ahorros-=cantidad; c.banco+=cantidad;
+    logAhorros("Se enviaron "+cantidad.toFixed(2)+" desde ahorros al banco");
+    actualizarBanco(); actualizarAhorros();
+}
+function enviarAhorrosTrading(){
+    let c=cuentas[usuarioActual];
+    let cantidad=parseFloat(document.getElementById("montoAhorrosTrading").value);
+    if(isNaN(cantidad)||cantidad<=0){ logAhorros("Cantidad inválida"); return; }
+    if(c.ahorros<cantidad){ logAhorros("No hay suficiente dinero en ahorros"); return; }
+    c.ahorros-=cantidad; c.dineroTrading+=cantidad;
+    logAhorros("Se enviaron "+cantidad.toFixed(2)+" desde ahorros a trading");
+    actualizarTrading(); actualizarAhorros();
+}
+
+// -------------------- ZONA SOCIAL --------------------
+function irZonaSocial(){
+    document.getElementById("mainMenu").style.display="none";
+    document.getElementById("socialMenu").style.display="block";
+    actualizarZonaSocial();
+}
+function volverMenuSocial(){
+    document.getElementById("socialMenu").style.display="none";
+    document.getElementById("mainMenu").style.display="block";
+}
+function transferirUsuario(){
+    let destinatario=document.getElementById("usuarioTransferir").value;
+    let cantidad=parseFloat(document.getElementById("montoTransferir").value);
+    if(!cuentas[destinatario]){ logSocial("Usuario no existe"); return; }
+    if(isNaN(cantidad)||cantidad<=0){ logSocial("Cantidad inválida"); return; }
+    let c=cuentas[usuarioActual];
+    if(c.dinero<cantidad){ logSocial("No tienes suficiente dinero"); return; }
+    c.dinero-=cantidad;
+    cuentas[destinatario].dinero+=cantidad;
+    logSocial("Transferiste "+cantidad.toFixed(2)+" ORTOS a "+destinatario);
+    actualizar(); actualizarZonaSocial();
+}
+
+// -------------------- NAVEGACIÓN --------------------
+function irInvertir(){ document.getElementById("mainMenu").style.display="none"; document.getElementById("tradingMenu").style.display="block"; }
+function volverMenu(){ document.getElementById("tradingMenu").style.display="none"; document.getElementById("mainMenu").style.display="block"; }
+function irBanco(){ document.getElementById("mainMenu").style.display="none"; document.getElementById("bankMenu").style.display="block"; }
+function volverMenuBanco(){ document.getElementById("bankMenu").style.display="none"; document.getElementById("mainMenu").style.display="block"; }
+function irAhorros(){ document.getElementById("mainMenu").style.display="none"; document.getElementById("ahorrosMenu").style.display="block"; }
+function volverMenuAhorros(){ document.getElementById("ahorrosMenu").style.display="none"; document.getElementById("mainMenu").style.display="block"; }
+
+</script>
+</body>
+</html>
